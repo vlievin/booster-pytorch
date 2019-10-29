@@ -28,8 +28,6 @@ class Aggregator():
             for k_, v_ in v.items():
                 if v_ is not None:
 
-                    print(k, k_, v_)
-
                     sum, count = self._sum_and_count(v_)
 
                     if k_ not in self._data[k].keys():

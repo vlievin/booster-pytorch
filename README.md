@@ -29,6 +29,8 @@ A module to compute the running average of the diagnostics.
 from booster.data import Aggregator, Diagnostic
 
 aggregator = Aggregator()
+...
+aggregator.initialize()
 for x in loader:
   data = op_step(model, data)
   aggregator.update(data)
