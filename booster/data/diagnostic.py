@@ -2,6 +2,8 @@ from collections import defaultdict
 from functools import partial
 from typing import *
 
+from torch.utils.tensorboard import SummaryWriter
+
 from ..utils import detach_to_device
 
 
@@ -58,3 +60,10 @@ class Diagnostic(defaultdict):
             return Diagnostic(data)
         else:
             return func(ob)
+
+
+    def log(self, writer: SummaryWriter, global_step: int):
+        """log Diagnostic to tensorboard"""
+        for k, v in self.items():
+            for k_, v_ in v.items():
+                writer.add_scalar(str(k) + '/' + str(k_), v_, global_step)

@@ -3,6 +3,7 @@ import sys;
 sys.path.append("../../")
 
 from booster.data import Aggregator, Diagnostic
+from torch.utils.tensorboard import SummaryWriter
 
 # create data
 data1 = {'loss': {'nll': 0.1, 'kl': 0.5}, 'other': {'yo': 0.3}}
@@ -27,3 +28,7 @@ summary = agg.data.to('cpu')
 
 # print resulting summary
 print(summary)
+
+# log to tensorboard
+writer = SummaryWriter(log_dir="../../tensorboard")
+summary.log(writer, 1)
