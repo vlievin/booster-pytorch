@@ -16,6 +16,8 @@ class Classification(Evaluator):
 
     def __call__(self, model: nn.Module, data: Tensor, **kwargs: Any) -> Tuple[Tensor, Diagnostic]:
         """
+        Compute the logits given the model and the data, compute the loss, and return loss + diagnostics
+
         :param model: pytorch model
         :param data: input data
         :param kwargs: other keywords arguments

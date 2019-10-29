@@ -6,6 +6,22 @@ from ..utils import detach_to_device
 
 
 class Diagnostic(defaultdict):
+    """
+    A data structure to store the model's evaluation details.
+    This is a two levels dictionary where each leaf is a value to track.
+    Diagnostics are designed to log only numerical values.
+    The structure matches with Tensorboard data logging specifications.
+
+    Example:
+    ```
+    diagnostics = {
+    'loss' : {'nll' : tensor, 'kl': tensor},
+    'info : {'batch_size' : integer, 'runtime' : float}
+    }
+    ```
+
+
+    """
 
     def __init__(self, __m: Optional[Mapping] = None):
         super().__init__(lambda: defaultdict(lambda: 0.))
