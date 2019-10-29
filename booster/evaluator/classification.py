@@ -27,9 +27,6 @@ class Classification(Evaluator):
         # unpack data
         x, y, *_ = data
 
-        print(x.shape)
-        print(y)
-
         # compute forward pass
         y_ = model(x, **kwargs)
 

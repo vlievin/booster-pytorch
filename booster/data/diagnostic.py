@@ -20,7 +20,6 @@ class Diagnostic(defaultdict):
     }
     ```
 
-
     """
 
     def __init__(self, __m: Optional[Mapping] = None):
