@@ -1,6 +1,6 @@
 # Booster
 
-A lightweight library to ease the training and the debugging of deep neural networks with PyTorch. Data structures and implementation paradigms.
+A lightweight library to ease the training and the debugging of deep neural networks with PyTorch. Data structures and paradigms.
 
 ## Data Structures
 
