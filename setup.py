@@ -8,7 +8,7 @@ setuptools.setup(
     version='0.0.1',
     author="Valentin Lievin",
     author_email="valentin.lievin@gmail.com",
-    description="Booster: a lightweight library to train deep neural networks with PyTorch.",
+    description="A lightweight library to ease the training and the debugging of deep neural networks with PyTorch. Data structures and paradigms.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/vlievin/booster-pytorch",
