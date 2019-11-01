@@ -6,7 +6,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torchvision
-from booster.evaluator import Classification
+from booster.evaluation import Classification
 
 # load data
 dataset = torchvision.datasets.MNIST('../../data', train=False, download=True, transform=torchvision.transforms.ToTensor())

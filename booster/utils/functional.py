@@ -9,7 +9,10 @@ from torch import Tensor
 
 def prod(x: Iterable):
     """return the product of an Iterable"""
-    reduce(operator.mul, x)
+    if len(x):
+        return reduce(operator.mul, x)
+    else:
+        return 0
 
 
 def batch_reduce(x: Tensor, reduce=torch.sum):

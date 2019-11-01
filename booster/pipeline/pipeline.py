@@ -5,12 +5,12 @@ from torch import nn, Tensor
 from torch.nn.parallel.data_parallel import DataParallel
 
 from ..data import Diagnostic
-from ..evaluator import Evaluator
+from ..evaluation import Evaluator
 
 
 class BoosterPipeline(torch.nn.Module):
     """
-    fuse model forward op with evaluator forward op to ease the DataParallel logic
+    fuse model forward op with evaluation forward op to ease the DataParallel logic
     """
 
     def __init__(self, model: nn.Module, evaluator: Evaluator):

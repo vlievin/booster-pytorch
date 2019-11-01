@@ -6,7 +6,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torchvision
-from booster.evaluator import Classification
+from booster.evaluation import Classification
 from booster.pipeline import BoosterPipeline
 from booster.ops import training_step, validation_step
 from booster.utils import EMA

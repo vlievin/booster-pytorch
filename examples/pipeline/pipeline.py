@@ -6,7 +6,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torchvision
-from booster.evaluator import Classification
+from booster.evaluation import Classification
 from booster.pipeline import BoosterPipeline, DataParallelPipeline
 
 # load data

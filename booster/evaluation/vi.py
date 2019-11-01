@@ -1,16 +1,14 @@
 import math
-from functools import partial
 from typing import *
 
 import numpy as np
 import torch
 from torch import Tensor, nn
-from torch.distributions import Distribution
 
 from .evaluator import Evaluator
 from .freebits import FreeBits
-from ..utils import batch_reduce, log_sum_exp, detach_to_device
 from ..data import Diagnostic
+from ..utils import batch_reduce, log_sum_exp, detach_to_device
 
 
 class VariationalInference(Evaluator):
@@ -23,7 +21,6 @@ class VariationalInference(Evaluator):
         :param parameters: additional parameters passed to model and evaluator
         """
         super().__init__()
-        assert isinstance(likelihood(), Distribution)
         assert iw_samples > 0
         self._iw_samples = iw_samples
         self._parameters = parameters
@@ -60,7 +57,7 @@ class VariationalInference(Evaluator):
 
         return kls, kls_loss
 
-    def compute_elbo(self, x, outputs, beta=1.0, freebits=0, **kwargs):
+    def compute_elbo(self, x, outputs, beta=1.0, freebits=None, **kwargs):
 
         # Destructuring dict
         x_ = outputs.get('x_')
@@ -104,7 +101,10 @@ class VariationalInference(Evaluator):
         """
 
         # get data
-        x, *_ = data
+        if not isinstance(data, Tensor):
+            x, *_ = data
+        else:
+            x = data
 
         # update kwargs
         kwargs.update(self._parameters)
@@ -144,6 +144,10 @@ class VariationalInference(Evaluator):
                      "bpd": bits_per_dim},
             "info": {"N_eff": N_eff, "batch_size": x.size(0)}
         }
+
+        # add auxiliary to loss
+        for key, (weight, value) in auxiliary.items():
+            diagnostics['loss'][key] = value
 
         # create diagnostics object and convert everything into tensors on x.device
         diagnostics = Diagnostic(diagnostics).to(x.device)
