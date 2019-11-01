@@ -31,8 +31,8 @@ from booster.data import Aggregator, Diagnostic
 aggregator = Aggregator()
 ...
 aggregator.initialize()
-for x in loader:
-  data = op_step(model, data)
+for x in data_loader:
+  data = optimization_step(model, data)
   aggregator.update(data)
 
 summmary = aggregator.data # summary is a Diagnostic
