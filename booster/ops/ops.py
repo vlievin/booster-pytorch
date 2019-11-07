@@ -5,7 +5,6 @@ import torch
 
 from ..data import Diagnostic
 from ..pipeline import BoosterPipeline
-from ..utils import EMA
 
 
 def append_ellapsed_time(func):
@@ -22,8 +21,8 @@ def append_ellapsed_time(func):
 
 @append_ellapsed_time
 def training_step(pipeline: BoosterPipeline, data: Tuple, optimizer: torch.optim.Optimizer, iteration: int,
-                  ema: Optional[EMA] = None, gradient_accumulation_steps: int = 1,
-                  max_grad_norm: Optional[float] = None, **kwargs: Any) -> Diagnostic:
+                  gradient_accumulation_steps: int = 1, max_grad_norm: Optional[float] = None,
+                  **kwargs: Any) -> Diagnostic:
     """
     Perform a training step given a batch of data for a [model+evaluator] pipeline.
     Also performs:
@@ -35,7 +34,6 @@ def training_step(pipeline: BoosterPipeline, data: Tuple, optimizer: torch.optim
     :param data: batch of data
     :param optimizer: pytorch optimizer
     :param iteration: global step value
-    :param ema: EMA object
     :param gradient_accumulation_steps: number of steps used to accumulate gradients
     :param max_grad_norm: maximum norm of the gradients (None no clipping is applied)
     :param kwargs: additional args passed to the pipeline
@@ -69,10 +67,6 @@ def training_step(pipeline: BoosterPipeline, data: Tuple, optimizer: torch.optim
 
         # re-initialize optimizer
         optimizer.zero_grad()
-
-    # EMA (Exponential Moving Average)
-    if ema is not None:
-        ema.update()
 
     return diagnostics
 
