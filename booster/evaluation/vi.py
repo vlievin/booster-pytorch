@@ -73,6 +73,10 @@ class VariationalInference(Evaluator):
         loss = nll + beta * kls_loss
         elbo = -(nll + kl)
 
+        return loss, elbo, kls, kl, nll
+
+    def compute_auxiliary(self, x, outputs, loss, **kwargs):
+
         # compute auxiliary losses / kls
         auxiliary = {}
         for k, default_value in self._auxiliary.items():
@@ -89,7 +93,7 @@ class VariationalInference(Evaluator):
             # store as a tuple
             auxiliary[k] = (weight, value)
 
-        return loss, elbo, kls, kl, nll, auxiliary
+        return loss, auxiliary
 
     def __call__(self, model: nn.Module, data: Tuple, **kwargs: Any) -> Tuple[Tensor, Diagnostic]:
         """
@@ -123,7 +127,8 @@ class VariationalInference(Evaluator):
             outputs = model(x, **kwargs)
 
             # compute VI elbo
-            loss, elbo, kls, kl, nll, auxiliary = self.compute_elbo(x, outputs, **kwargs)
+            loss, elbo, kls, kl, nll = self.compute_elbo(x, outputs, **kwargs)
+            loss, auxiliary = self.compute_auxiliary(x, outputs, loss, **kwargs)
             iw_elbos[k, :] = elbo
             iw_kls[k, :] = - kl
             iw_nlls[k, :] = - nll
@@ -138,7 +143,7 @@ class VariationalInference(Evaluator):
         N_eff = torch.sum(ratios, 0) ** 2 / torch.sum(ratios ** 2, 0)
 
         # gather diagnostics
-        bits_per_dim = elbo / math.log(2.) / np.prod(x.size()[1:])
+        bits_per_dim = - elbo / math.log(2.) / np.prod(x.size()[1:])
         diagnostics = {
             "loss": {"loss": loss, "elbo": elbo, "kl": kl, "nll": nll,
                      "bpd": bits_per_dim},
