@@ -1,1 +1,1 @@
-from .pipeline import BoosterPipeline, DataParallelPipeline
+from .pipeline import Pipeline, DataParallelPipeline

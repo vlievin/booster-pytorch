@@ -3,8 +3,8 @@ from typing import *
 
 import torch
 
-from ..data import Diagnostic
-from ..pipeline import BoosterPipeline
+from ..datastruct import Diagnostic
+from ..pipeline import Pipeline
 
 
 def append_ellapsed_time(func):
@@ -20,7 +20,7 @@ def append_ellapsed_time(func):
 
 
 @append_ellapsed_time
-def training_step(pipeline: BoosterPipeline, data: Tuple, optimizer: torch.optim.Optimizer, iteration: int,
+def training_step(pipeline: Pipeline, data: Tuple, optimizer: torch.optim.Optimizer, iteration: int,
                   gradient_accumulation_steps: int = 1, max_grad_norm: Optional[float] = None,
                   **kwargs: Any) -> Diagnostic:
     """
@@ -73,7 +73,7 @@ def training_step(pipeline: BoosterPipeline, data: Tuple, optimizer: torch.optim
 
 @torch.no_grad()
 @append_ellapsed_time
-def validation_step(pipeline: BoosterPipeline, data: Tuple, **kwargs: Any) -> Diagnostic:
+def validation_step(pipeline: Pipeline, data: Tuple, **kwargs: Any) -> Diagnostic:
     """
     Perform a validation step given a batch of data for a [model+evaluator] pipeline.
 

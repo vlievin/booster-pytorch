@@ -7,7 +7,7 @@ from torch import Tensor, nn
 
 from .evaluator import Evaluator
 from .freebits import FreeBits
-from ..data import Diagnostic
+from ..datastruct import Diagnostic
 from ..utils import batch_reduce, log_sum_exp, detach_to_device
 
 
@@ -153,6 +153,12 @@ class VariationalInference(Evaluator):
         # add auxiliary to loss
         for key, (weight, value) in auxiliary.items():
             diagnostics['loss'][key] = value
+
+        # add parameters from kwargs:
+        def _check_type(v):
+            return isinstance(v, float) or (isinstance(v, Tensor) and v.dim() == 0)
+
+        diagnostics['parameters'] = {k: v for k, v in kwargs.items() if _check_type(v)}
 
         # create diagnostics object and convert everything into tensors on x.device
         diagnostics = Diagnostic(diagnostics).to(x.device)

@@ -2,7 +2,7 @@ import sys;
 
 sys.path.append("../../")
 
-from booster.data import Aggregator, Diagnostic
+from booster.datastruct import Aggregator, Diagnostic
 from torch.utils.tensorboard import SummaryWriter
 
 # create data

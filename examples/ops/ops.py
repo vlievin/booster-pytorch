@@ -7,8 +7,8 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 from booster.evaluation import Classification
-from booster.pipeline import BoosterPipeline
-from booster.ops import training_step, validation_step
+from booster.pipeline import Pipeline
+from booster.training import training_step, validation_step
 
 # load data
 dataset = torchvision.datasets.MNIST('../../data', train=True, download=True,
@@ -40,7 +40,7 @@ model = Classifier()
 evaluator = Classification(10)
 
 # fuse model + evaluator
-pipeline = BoosterPipeline(model, evaluator)
+pipeline = Pipeline(model, evaluator)
 
 # optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

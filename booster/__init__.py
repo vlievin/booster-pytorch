@@ -1,5 +1,5 @@
-__all__ = ["data", "evaluation", "logging", "ops", "pipeline", "utils"]
+__all__ = ["datastruct", "evaluation", "logging", "training", "pipeline", "utils"]
 
-from .data import Aggregator, Diagnostic
-from .pipeline import BoosterPipeline, DataParallelPipeline
+from .datastruct import Aggregator, Diagnostic
+from .pipeline import Pipeline, DataParallelPipeline
 from .evaluation import Evaluator, VariationalInference, FreeBits

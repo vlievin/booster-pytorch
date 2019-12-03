@@ -50,3 +50,10 @@ def safe_sum(x):
         return sum(x)
     else:
         return x
+
+
+def _to_device(x: Any, device: torch.device):
+    if isinstance(x, Tensor):
+        return x.to(device)
+    else:
+        return x

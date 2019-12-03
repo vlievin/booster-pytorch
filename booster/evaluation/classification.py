@@ -4,7 +4,7 @@ import torch
 from torch import nn, Tensor
 
 from .evaluator import Evaluator
-from ..data import Diagnostic
+from ..datastruct import Diagnostic
 from ..utils import batch_reduce
 
 

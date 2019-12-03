@@ -1,7 +1,7 @@
 from typing import *
 
 from torch import nn, Tensor
-from ..data import Diagnostic
+from ..datastruct import Diagnostic
 
 class Evaluator():
     def __call__(self, model: nn.Module, data: Tuple, **kwargs: Any) -> Tuple[Tensor, Diagnostic]:

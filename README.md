@@ -11,7 +11,7 @@ A two level dictionary structure to store the model diagnostics. Compatible with
 Example:
 
 ```python
-from booster.data import Diagnostic
+from booster.datastruct import Diagnostic
 
 data = {
 'loss' : {'nll' : [45., 58.], 'kl': [22., 18.]},
@@ -26,7 +26,7 @@ diagnostic = Diagnostic(data)
 A module to compute the running average of the diagnostics.
 
 ```python
-from booster.data import Aggregator, Diagnostic
+from booster.datastruct import Aggregator, Diagnostic
 
 aggregator = Aggregator()
 ...

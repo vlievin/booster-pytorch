@@ -4,11 +4,11 @@ import torch
 from torch import nn, Tensor
 from torch.nn.parallel.data_parallel import DataParallel
 
-from ..data import Diagnostic
+from ..datastruct import Diagnostic
 from ..evaluation import Evaluator
 
 
-class BoosterPipeline(torch.nn.Module):
+class Pipeline(torch.nn.Module):
     """
     fuse model forward op with evaluation forward op to ease the DataParallel logic
     """

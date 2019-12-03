@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 from booster.evaluation import Classification
-from booster.pipeline import BoosterPipeline, DataParallelPipeline
+from booster.pipeline import Pipeline, DataParallelPipeline
 
 # load data
 dataset = torchvision.datasets.MNIST('../../data', train=False, download=True,
@@ -50,7 +50,7 @@ evaluator = Classification(10)
 model.to("cuda:0")
 
 # fuse model + evaluator
-pipeline = BoosterPipeline(model, evaluator)
+pipeline = Pipeline(model, evaluator)
 
 # wrap as DataParallel
 parallel_pipeline = DataParallelPipeline(pipeline, device_ids=device_ids)
