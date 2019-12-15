@@ -6,76 +6,15 @@ from functools import partial
 from typing import *
 
 import torch
-from booster.datastruct import Aggregator, Diagnostic
+from torch import Tensor
+from tqdm import tqdm
+
+from booster.datastruct import Diagnostic
 from booster.logging import LoggerManager, BestScore
 from booster.pipeline import Pipeline
 from booster.utils.functional import _to_device
-from torch import Tensor
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
-from .ops import training_step, validation_step
 from .scheduler import ParametersScheduler
-
-
-class BaseTask():
-    def __init__(self,
-                 key: str,
-                 pipeline: Pipeline,
-                 dataloader: DataLoader):
-        super().__init__()
-
-        self.key = key
-        self.pipeline = pipeline
-        self.dataloader = dataloader
-        self.aggregator = Aggregator()
-
-    def initialize(self):
-        self.aggregator.initialize()
-
-    @property
-    def summary(self) -> Diagnostic:
-        return self.aggregator.data.to('cpu')
-
-    def step(self, iteration, data, **kwargs):
-        raise NotImplementedError
-
-    def run_epoch(self, global_step):
-        for data in tqdm(self.dataloader, desc=f'{self.key} Epoch'):
-            data = map(_to_device, data)
-            self.step(global_step, data, **self.parameters_manager)
-
-
-class Training(BaseTask):
-    def __init__(self,
-                 key: str,
-                 pipeline: Pipeline,
-                 dataloader: DataLoader,
-                 optimizer: torch.optim.Optimizer,
-                 **kwargs):
-        super().__init__(key, pipeline, dataloader)
-
-        self.optimizer = optimizer
-        self.kwargs = kwargs
-
-    def step(self, iteration, data, **kwargs):
-        diagnostics = training_step(self.pipeline, data, self.optimizer, iteration, **self.kwargs, **kwargs)
-        self.aggregator.update(diagnostics)
-
-
-class Validation(BaseTask):
-    def __init__(self,
-                 key: str,
-                 pipeline: Pipeline,
-                 dataloader: DataLoader,
-                 **kwargs):
-        super().__init__(key, pipeline, dataloader)
-
-        self.kwargs = kwargs
-
-    def step(self, iteration, data, **kwargs):
-        diagnostics = validation_step(self.pipeline, data, **self.kwargs, **kwargs)
-        self.aggregator.update(diagnostics)
+from .task import BaseTask, Training, Validation
 
 
 class Engine():
@@ -86,6 +25,10 @@ class Engine():
     * loading / saving best model
     * run test epoch
     * overall UX
+    * matplotlib curve logger
+    * check folder before running: overwrite, resume?
+    * couple with Sacred? allows running different modes: training, eval, test
+    * solve logging
 
     Functionalities:
     1. training
@@ -108,6 +51,8 @@ class Engine():
                  task2track: Optional[str] = None,
                  debugging=False,
                  samplers=[],
+                 override=False,
+                 resume=True,
                  **kwargs):
 
         print(f"# logging directory: {os.path.abspath(logdir)}")
@@ -119,11 +64,18 @@ class Engine():
         self.test_task = test_task
         self.parameters_manager = parameters_scheduler
         self.epochs = epochs
+        self.device = device
+
+        # logging files
         self.logdir = logdir
         self.model_path = os.path.join(self.logdir, "pipeline.pt")
         self.eval_score_path = os.path.join(self.logdir, "eval-score.json")
         self.test_score_path = os.path.join(self.logdir, "test-score.json")
-        self.device = device
+        self.state_path = os.path.join(self.logdir, "state.pt")
+
+        # create dir
+        if not os.path.exists(self.logdir):
+            os.makedirs(self.logdir)
 
         # key to track to save the best model
         self.key2track = key2track
@@ -148,6 +100,26 @@ class Engine():
 
         M_parameters = (sum(p.numel() for p in self.training_task.pipeline.model.parameters() if p.requires_grad) / 1e6)
         self.info_logger.info(f'# Total Number of Parameters: {M_parameters:.3f}M')
+
+        # check directory availability
+        self.check_availability(override, resume)
+
+    def check_availability(self, override, resume):
+
+        if os.path.exists(self.state_path):
+
+            if resume:
+                self.load_state()
+                self.info_logger.info(
+                    f"# Resuming at step={self.global_step}, epoch={self.epoch}, score={self.best_validation_score.value:.2f}")
+
+            elif override:
+                self.info_logger.info(f"# Overriding run at {self.logdir}.")
+
+            else:
+                self.info_logger.info(
+                    f"# Run already exists at {self.logdir}, set resume=True to resume, override=True to delete previous run.")
+                exit()
 
     def setup_logging(self, logdir):
         logging.basicConfig(level=logging.INFO,
@@ -174,12 +146,12 @@ class Engine():
         # evaluation tasks
         self.evaluate()
 
-        for epoch in range(1, self.epochs + 1):
-            self.epoch = epoch
+        for _ in range(self.epochs):
+            self.epoch += 1
 
             # training loop
             self.training_task.initialize()
-            for data in tqdm(self.training_task.dataloader, desc=f'{self.training_task.key} Epoch {epoch}'):
+            for data in tqdm(self.training_task.dataloader, desc=f'{self.training_task.key} Epoch {self.epoch}'):
                 data = self.to_device(data, self.device)
                 self.training_task.step(self.global_step, data, **self.parameters_manager.parameters)
                 self.global_step += 1
@@ -200,8 +172,8 @@ class Engine():
             # sample models
             self.sample()
 
-    def load_best_model(self, pipeline):
-        pipeline.load_state_dict(torch.load(self.model_path))
+            # checkpoint
+            self.save_state()
 
     def sample(self):
         for sampler in self.samplers:
@@ -226,15 +198,10 @@ class Engine():
     def save_score(self, best_score, path):
         data = best_score._asdict()
 
-        data['value'] = data['value'].mean().item()
+        if isinstance(data['value'], Tensor):
+            data['value'] = data['value'].mean().item()
 
-        summary = defaultdict(dict)
-        for k, v in data['summary'].items():
-            for kk, vv in v.items():
-                if isinstance(vv, Tensor):
-                    vv = vv.mean().item()
-                summary[k][kk] = vv
-        data['summary'] = summary
+        data = {'summary': self._diagnostic2dict(data['summary'])}
 
         with open(path, 'w') as fp:
             json.dump(data, fp)
@@ -253,19 +220,12 @@ class Engine():
             self.log_diagnostic(task.key, diagnostic, best_score=best_score)
 
     def test(self):
-        data = self.run_task(self.global_step, self.epoch, self.test_task, **self.parameters_manager.parameters)
+        diagnostic = self.run_task(self.global_step, self.epoch, self.test_task, **self.parameters_manager.parameters)
 
-        summary = defaultdict(dict)
-        for k, v in data.items():
-            for kk, vv in v.items():
-                if isinstance(vv, Tensor):
-                    vv = vv.mean().item()
-                summary[k][kk] = vv
+        score = self.key2track(diagnostic)
+        best_score = BestScore(step=self.global_step, epoch=self.epoch, value=score, summary=diagnostic)
 
-        data = {'summary': summary}
-
-        with open(self.test_score_path, 'w') as fp:
-            json.dump(data, fp)
+        self.save_score(self, best_score, self.test_score_path)
 
     def run_task(self, global_step, epoch, task, **parameters) -> Diagnostic:
         task.initialize()
@@ -275,3 +235,40 @@ class Engine():
             if self.debugging:
                 break
         return task.summary
+
+    @staticmethod
+    def _diagnostic2dict(data: Diagnostic):
+        summary = defaultdict(dict)
+        for k, v in data.items():
+            for kk, vv in v.items():
+                if isinstance(vv, Tensor):
+                    vv = vv.mean().item()
+                summary[k][kk] = vv
+
+        return summary
+
+    def load_best_model(self, pipeline):
+        pipeline.load_state_dict(torch.load(self.model_path))
+
+    def save_state(self):
+
+        state = {
+            'pipeline': self.training_task.pipeline.state_dict(),
+            'optimizer': self.training_task.optimizer.state_dict(),
+            'step': self.global_step,
+            'epoch': self.epoch,
+            'best-score': self.best_validation_score._asdict(),
+        }
+        state['best-score']['summary'] = self._diagnostic2dict(state['best-score']['summary'])
+
+        torch.save(state, self.state_path)
+
+    def load_state(self):
+
+        state = torch.load(self.state_path)
+
+        self.training_task.pipeline.load_state_dict(state['pipeline'])
+        self.training_task.optimizer.load_state_dict(state['optimizer'])
+        self.global_step = state['step']
+        self.epoch = state['epoch']
+        self.best_validation_score = BestScore(**state['best-score'])

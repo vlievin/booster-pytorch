@@ -1,6 +1,8 @@
+import pickle
 from typing import *
 
 import torch
+
 from booster.utils import Schedule
 
 
@@ -32,3 +34,9 @@ class ParametersScheduler(object):
 
             if k == 'lr':
                 update_lr(self.optimizer, self.parameters['lr'])
+
+    def state_dict(self):
+        return self.parameters
+
+    def load_state_dict(self, data):
+        self.parameters = data
