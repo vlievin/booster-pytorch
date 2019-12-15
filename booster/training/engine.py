@@ -1,6 +1,7 @@
+import json
 import logging
 import os
-from enum import Enum
+from collections import defaultdict
 from functools import partial
 from typing import *
 
@@ -8,12 +9,13 @@ import torch
 from booster.datastruct import Aggregator, Diagnostic
 from booster.logging import LoggerManager, BestScore
 from booster.pipeline import Pipeline
-from booster.utils.schedule import Schedule
+from booster.utils.functional import _to_device
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .ops import training_step, validation_step
+from .scheduler import ParametersScheduler
 
 
 class BaseTask():
@@ -76,62 +78,15 @@ class Validation(BaseTask):
         self.aggregator.update(diagnostics)
 
 
-class TriggerType(Enum):
-    STEP = 'step'
-    EPOCH = "epoch"
-
-
-class Trigger():
-    def __init__(self, trigger_type: TriggerType, frequency: int, action: Callable):
-        self.trigger_type = trigger_type
-        self.frequency = frequency
-        self.action = action
-
-    def __call__(self, step, epoch, *args, **kwargs):
-        iteration = {TriggerType.STEP: step, TriggerType.EPOCH: epoch}[self.trigger_type]
-
-        if (iteration + 1) % self.frequency == 0:
-            return self.action(*args, **kwargs)
-
-
-def update_lr(optimizer: torch.optim.Optimizer, lrs: Union[float, list]):
-    """
-    update the learning rate
-    args:
-        optimizer (torch.optim.Optimizer): PyTorch Optimizer
-        lr: lr value
-    """
-    if isinstance(lrs, float):
-        lrs = [lrs]
-
-    assert len(lrs) == len(optimizer.param_groups)
-
-    for param_group, lr in zip(optimizer.param_groups, lrs):
-        param_group['lr'] = lr
-
-class ParametersScheduler(object):
-    def __init__(self, parameters: Dict, rules: Dict[str, Schedule], optimizer: torch.optim.Optimizer):
-        self.parameters = parameters
-        self.rules = rules
-        self.optimizer = optimizer
-
-    def update(self, step, epoch):
-        for k, rule in self.rules.items():
-            self.parameters[k] = rule(step, epoch, self.parameters[k])
-
-            if k == 'lr':
-                update_lr(self.optimizer, self.parameters['lr'])
-
-
-def _to_device(x: Any, device: torch.device):
-    if isinstance(x, Tensor):
-        return x.to(device)
-    else:
-        return x
-
-
 class Engine():
     """
+
+    TODO:
+    * save state
+    * loading / saving best model
+    * run test epoch
+    * overall UX
+
     Functionalities:
     1. training
     2. validation
@@ -155,6 +110,8 @@ class Engine():
                  samplers=[],
                  **kwargs):
 
+        print(f"# logging directory: {os.path.abspath(logdir)}")
+
         self.setup_logging(logdir)
 
         self.training_task = training_task
@@ -163,8 +120,10 @@ class Engine():
         self.parameters_manager = parameters_scheduler
         self.epochs = epochs
         self.logdir = logdir
+        self.model_path = os.path.join(self.logdir, "pipeline.pt")
+        self.eval_score_path = os.path.join(self.logdir, "eval-score.json")
+        self.test_score_path = os.path.join(self.logdir, "test-score.json")
         self.device = device
-        self.to_device = partial(_to_device, device=device)
 
         # key to track to save the best model
         self.key2track = key2track
@@ -176,7 +135,7 @@ class Engine():
         # state
         self.global_step = 0
         self.epoch = 0
-        self.best_validation_score = BestScore(step=0, epoch=0, value=-1e12)
+        self.best_validation_score = BestScore(step=0, epoch=0, value=-1e12, summary=None)
 
         # logging
         self.logger = LoggerManager(logdir, **kwargs)
@@ -187,6 +146,9 @@ class Engine():
         # samplers
         self.samplers = samplers
 
+        M_parameters = (sum(p.numel() for p in self.training_task.pipeline.model.parameters() if p.requires_grad) / 1e6)
+        self.info_logger.info(f'# Total Number of Parameters: {M_parameters:.3f}M')
+
     def setup_logging(self, logdir):
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s %(name)-4s %(levelname)-4s %(message)s',
@@ -194,7 +156,23 @@ class Engine():
                             handlers=[logging.FileHandler(os.path.join(logdir, 'run.log')),
                                       logging.StreamHandler()])
 
+        self.info_logger = logging.getLogger("Info")
+
+    @staticmethod
+    def to_device(data, device):
+        if isinstance(data, Tensor):
+            return data.to(device)
+        else:
+            to_device = partial(_to_device, device=device)
+            return map(to_device, data)
+
     def train(self):
+
+        # sample models
+        self.sample()
+
+        # evaluation tasks
+        self.evaluate()
 
         for epoch in range(1, self.epochs + 1):
             self.epoch = epoch
@@ -202,7 +180,7 @@ class Engine():
             # training loop
             self.training_task.initialize()
             for data in tqdm(self.training_task.dataloader, desc=f'{self.training_task.key} Epoch {epoch}'):
-                data = map(self.to_device, data)
+                data = self.to_device(data, self.device)
                 self.training_task.step(self.global_step, data, **self.parameters_manager.parameters)
                 self.global_step += 1
 
@@ -214,47 +192,85 @@ class Engine():
                     break
 
             # log training summary
-            self.log(self.training_task.key, self.training_task.summary)
+            self.log_diagnostic(self.training_task.key, self.training_task.summary)
 
             # evaluation tasks
-            for task in self.validation_tasks:
-                diagnostic = self.run_task(self.global_step, self.epoch, task, **self.parameters_manager.parameters)
-
-                best_score = None
-                if task.key == self.task2track:
-                    # save best model
-                    self.update_validation_score_and_save(task.pipeline, diagnostic)
-                    best_score = self.best_validation_score
-
-                # log validation
-                self.log(task.key, diagnostic, best_score=best_score)
+            self.evaluate()
 
             # sample models
-            for sampler in self.samplers:
-                sampler.sample(self.global_step)
+            self.sample()
 
-        # final test
-        # TODO: free memory
-        self.test_task.load_model()  # implement this
-        self.run_task(self.best_validation_score.step, self.best_validation_score.step.epoch, self.test_task,
-                      **self.parameters_manager.parameters)
+    def load_best_model(self, pipeline):
+        pipeline.load_state_dict(torch.load(self.model_path))
 
-    def log(self, key, summary, **kwargs):
-        self.logger.log(key, self.global_step, self.epoch, summary, **kwargs)
+    def sample(self):
+        for sampler in self.samplers:
+            sampler.sample(self.global_step, self.epoch, self.logger)
+
+    def log_diagnostic(self, key, summary, **kwargs):
+        self.logger.log_diagnostic(key, self.global_step, self.epoch, summary, **kwargs)
 
     def update_validation_score_and_save(self, pipeline: Pipeline, diagnostic: Diagnostic):
         score = self.key2track(diagnostic)
         prev_score = self.best_validation_score.value
         if score > prev_score:
-            self.best_validation_score = BestScore(step=self.global_step, epoch=self.epoch, value=score)
+            self.best_validation_score = BestScore(step=self.global_step, epoch=self.epoch, value=score,
+                                                   summary=diagnostic)
 
-            path = os.path.join(self.logdir, "pipeline.pt")
-            torch.save(pipeline.state_dict(), path)
+            # save metadata
+            self.save_score(self.best_validation_score, self.eval_score_path)
+
+            # save model
+            torch.save(pipeline.state_dict(), self.model_path)
+
+    def save_score(self, best_score, path):
+        data = best_score._asdict()
+
+        data['value'] = data['value'].mean().item()
+
+        summary = defaultdict(dict)
+        for k, v in data['summary'].items():
+            for kk, vv in v.items():
+                if isinstance(vv, Tensor):
+                    vv = vv.mean().item()
+                summary[k][kk] = vv
+        data['summary'] = summary
+
+        with open(path, 'w') as fp:
+            json.dump(data, fp)
+
+    def evaluate(self):
+        for task in self.validation_tasks:
+            diagnostic = self.run_task(self.global_step, self.epoch, task, **self.parameters_manager.parameters)
+
+            best_score = None
+            if task.key == self.task2track:
+                # save best model
+                self.update_validation_score_and_save(task.pipeline, diagnostic)
+                best_score = self.best_validation_score
+
+            # log validation
+            self.log_diagnostic(task.key, diagnostic, best_score=best_score)
+
+    def test(self):
+        data = self.run_task(self.global_step, self.epoch, self.test_task, **self.parameters_manager.parameters)
+
+        summary = defaultdict(dict)
+        for k, v in data.items():
+            for kk, vv in v.items():
+                if isinstance(vv, Tensor):
+                    vv = vv.mean().item()
+                summary[k][kk] = vv
+
+        data = {'summary': summary}
+
+        with open(self.test_score_path, 'w') as fp:
+            json.dump(data, fp)
 
     def run_task(self, global_step, epoch, task, **parameters) -> Diagnostic:
         task.initialize()
         for data in tqdm(task.dataloader, desc=f'{task.key} Epoch {epoch}'):
-            data = map(self.to_device, data)
+            data = self.to_device(data, self.device)
             task.step(global_step, data, **parameters)
             if self.debugging:
                 break

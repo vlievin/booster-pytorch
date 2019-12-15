@@ -38,8 +38,11 @@ class VariationalInference(Evaluator):
         # set kls and freebits as lists
         if not isinstance(kls, list):
             kls = [kls]
-            if freebits is not None and not isinstance(freebits, list):
-                freebits = [freebits]
+
+        if freebits is not None and not isinstance(freebits, list):
+            freebits = [freebits for _ in kls]
+
+        assert len(freebits) == len(kls)
 
         # apply freebits to each
         if freebits is not None:

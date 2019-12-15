@@ -4,6 +4,7 @@ from booster.evaluation import VariationalInference
 from booster.models import SimpleVAE
 from booster.training.engine import *
 from booster.training.engine import ParametersScheduler
+from booster.training.sampler import PriorSampler
 from booster.utils.schedule import DecaySchedule, LinearSchedule
 from torch.distributions import Bernoulli
 from torch.utils.data import DataLoader
@@ -72,11 +73,21 @@ training_task = Training("Training", pipeline, train_loader, optimizer)
 validation_task = Validation("Validation", pipeline, test_loader)
 test_task = Validation("Test", test_pipeline, test_loader)
 
+# sampler
+prior_sampler = PriorSampler(validation_task, 100)
+samplers = [prior_sampler]
+
 # define engine
 device = "cuda" if torch.cuda.is_available() else "cpu"
 key2track = lambda diagnostic: diagnostic['loss']['elbo']
 engine = Engine(training_task, [validation_task], test_task, parameters_scheduler, opt.epochs, device, logdir,
-                key2track)
+                key2track, samplers=samplers)
 
 # training
 engine.train()
+
+# load best model
+engine.load_best_model(pipeline)
+
+# sample
+engine.sample()

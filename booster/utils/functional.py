@@ -1,10 +1,12 @@
 import collections
+import math
 import operator
 from functools import reduce
 from typing import *
 
 import torch
 from torch import Tensor
+from torchvision.utils import make_grid
 
 
 def prod(x: Iterable):
@@ -57,3 +59,32 @@ def _to_device(x: Any, device: torch.device):
         return x.to(device)
     else:
         return x
+
+
+def make_grid_from_images(x_: Tensor, nrow: Optional[int] = None) -> Tensor:
+    print("# make_grid:", x_.min(), x_.max())
+
+    # replace nans with 0
+    x_[x_ != x_] = 0
+
+    # normalization
+    x_ = x_.float()
+
+    # round minimum to lower integer
+    _min = x_.min().long().float()
+    if _min < 0 and _min > x_.min():
+        _min -= 1
+
+    x_ -= _min
+
+    # round maximum to upper integer
+    _max = x_.max().long().float()
+    if _max > 0 and _max < x_.max():
+        _max += 1
+
+    x_ /= _max
+
+    # make grid
+    if nrow is None:
+        nrow = math.floor(math.sqrt(x_.size(0)))
+    return make_grid(x_, nrow=nrow)

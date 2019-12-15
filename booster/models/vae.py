@@ -77,7 +77,6 @@ class SimpleVAE(nn.Module):
         # sample z \sim q(z|x)
         z = prior.rsample()
 
-        p_x_given_z = self._px(z)
-        x_sample = p_x_given_z.rsample()
+        x_logits = self._px(z)
 
-        return {'x_': x_sample, 'z': z, 'pz': prior}
+        return {'x_': x_logits, 'z': z, 'pz': prior}
