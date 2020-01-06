@@ -16,10 +16,11 @@ parser.add_argument('--root', default='runs/', help='directory to store training
 parser.add_argument('--run_id', default='example', help='run identifier')
 parser.add_argument('--data_root', default='data/', help='directory to store the dataset')
 parser.add_argument('--bs', default=64, type=int, help='batch size')
-parser.add_argument('--epochs', default=3, type=int, help='number of epochs')
+parser.add_argument('--epochs', default=100, type=int, help='number of epochs')
 parser.add_argument('--lr', default=2e-3, type=float, help='base learning rate')
 parser.add_argument('--seed', default=42, type=int, help='random seed')
 parser.add_argument('--debug', action='store_true', help='debugging mode')
+parser.add_argument('--override', action='store_true', help='override previous run')
 
 opt = parser.parse_args()
 
@@ -80,7 +81,7 @@ samplers = [prior_sampler]
 device = "cuda" if torch.cuda.is_available() else "cpu"
 key2track = lambda diagnostic: diagnostic['loss']['elbo']
 engine = Engine(training_task, [validation_task], test_task, parameters_scheduler, opt.epochs, device, logdir,
-                key2track, samplers=samplers, debugging=opt.debug)
+                key2track, samplers=samplers, debugging=opt.debug, override=opt.override)
 
 # training
 engine.train()
@@ -91,7 +92,5 @@ engine.load_best_model(pipeline)
 # sample
 engine.sample()
 
-print("# RELOADING")
-
-engine.load_state()
-engine.train()
+# test
+engine.test()

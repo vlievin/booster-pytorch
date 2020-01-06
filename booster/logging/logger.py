@@ -6,9 +6,12 @@ from collections import namedtuple
 from typing import *
 
 import matplotlib.image
-from booster import Diagnostic
+import matplotlib.pyplot as plt
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
+
+from booster import Diagnostic
+from .datatracker import DataTracker
 
 BestScore = namedtuple('BestScore', ['step', 'epoch', 'value', 'summary'])
 
@@ -44,16 +47,18 @@ class LoggingLogger(BaseLogger):
 
         self.logger = logging.getLogger(self.key)
 
-        logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
-        self.logger = logging.getLogger(self.key)
+        # logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+        # self.logger = logging.getLogger(self.key)
+        #
+        # fileHandler = logging.FileHandler(os.path.join(self.logdir, 'run.log'))
+        # fileHandler.setFormatter(logFormatter)
+        # self.logger.addHandler(fileHandler)
+        #
+        # consoleHandler = logging.StreamHandler(sys.stdout)
+        # consoleHandler.setFormatter(logFormatter)
+        # self.logger.addHandler(consoleHandler)
 
-        fileHandler = logging.FileHandler(os.path.join(self.logdir, 'run.log'))
-        fileHandler.setFormatter(logFormatter)
-        self.logger.addHandler(fileHandler)
-
-        consoleHandler = logging.StreamHandler(sys.stdout)
-        consoleHandler.setFormatter(logFormatter)
-        self.logger.addHandler(consoleHandler)
+        self.logger.setLevel(logging.INFO)
 
         self.diagnostic_keys = diagnostic_keys
 
@@ -76,12 +81,51 @@ class LoggingLogger(BaseLogger):
             self.logger.info(message)
 
     def log_image(self, key: str, global_step: int, epoch: int, img_tensor: Tensor):
+        pass
+
+
+class PlotLogger(BaseLogger):
+    def __init__(self, *args, diagnostic_keys=['loss'], **kwargs):
+        super().__init__(*args)
+        self.diagnostic_keys = diagnostic_keys
+        self.tracker = DataTracker(label=self.key)
+
+    def log_diagnostic(self, global_step: int, epoch: int, summary: Diagnostic, **kwargs):
+        for key in self.diagnostic_keys:
+            self.tracker.append(global_step, summary[key])
+
+    def plot(self, *args, **kwargs):
+        self.tracker.plot(*args, **kwargs)
+
+    def log_image(self, key: str, global_step: int, epoch: int, img_tensor: Tensor):
         img = img_tensor.data.permute(1, 2, 0).cpu().numpy()
         matplotlib.image.imsave(os.path.join(self.logdir, f"{key}.png"), img)
 
 
+class PlotHandler(List):
+    def __init__(self, logdir, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.path = os.path.join(logdir, "curves.png")
+
+    def plot(self):
+
+        if len(self):
+            logger = self[0]
+            keys = logger.tracker.data.keys()
+
+            plt.figure(figsize=(4 * len(keys), 3))
+            for i, key in enumerate(keys):
+                plt.subplot(1, len(keys), i + 1)
+                plt.title(key)
+                for logger in self:
+                    logger.plot(key)
+                plt.legend()
+
+            plt.savefig(self.path)
+
+
 class Logger(BaseLogger):
-    def __init__(self, key, logdir, tensorboard=True, logging=True, **kwargs):
+    def __init__(self, key, logdir, tensorboard=True, logging=True, plot=True, **kwargs):
         super().__init__(key, logdir)
 
         self.loggers = []
@@ -91,6 +135,9 @@ class Logger(BaseLogger):
 
         if logging:
             self.loggers += [LoggingLogger(key, logdir, **kwargs)]
+
+        if plot:
+            self.loggers += [PlotLogger(key, logdir, **kwargs)]
 
     def log_diagnostic(self, *args, **kwargs):
         for logger in self.loggers:
@@ -109,14 +156,23 @@ class LoggerManager():
 
         self.loggers = {}
 
+        self.plot_handler = PlotHandler(self.logdir)
+
     def init_logger(self, key):
         self.loggers[key] = Logger(key, self.logdir, **self.kwargs)
+
+        # mappend PlotLogger to PlotHandler
+        for logger in self.loggers[key].loggers:
+            if isinstance(logger, PlotLogger):
+                self.plot_handler.append(logger)
 
     def log_diagnostic(self, key, step, epoch, summary, **kwargs):
         if key not in self.loggers:
             self.init_logger(key)
 
         self.loggers[key].log_diagnostic(step, epoch, summary, **kwargs)
+
+        self.plot_handler.plot()
 
     def log_image(self, key, image_key, step, epoch, img_tensor, **kwargs):
         if key not in self.loggers:

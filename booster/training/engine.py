@@ -28,7 +28,8 @@ class Engine():
     * matplotlib curve logger
     * check folder before running: overwrite, resume?
     * couple with Sacred? allows running different modes: training, eval, test
-    * solve logging
+    * solve logging issue (nothing written to file..)
+    * find a way to handle the saving of the EMA validation model
 
     Functionalities:
     1. training
@@ -98,6 +99,9 @@ class Engine():
         # samplers
         self.samplers = samplers
 
+
+        # log info
+        self.info_logger.info(f"# Torch version: {torch.__version__}")
         M_parameters = (sum(p.numel() for p in self.training_task.pipeline.model.parameters() if p.requires_grad) / 1e6)
         self.info_logger.info(f'# Total Number of Parameters: {M_parameters:.3f}M')
 
@@ -108,7 +112,7 @@ class Engine():
 
         if os.path.exists(self.state_path):
 
-            if resume:
+            if resume and not override:
                 self.load_state()
                 self.info_logger.info(
                     f"# Resuming at step={self.global_step}, epoch={self.epoch}, score={self.best_validation_score.value:.2f}")
@@ -129,6 +133,7 @@ class Engine():
                                       logging.StreamHandler()])
 
         self.info_logger = logging.getLogger("Info")
+        self.info_logger.setLevel(logging.INFO)
 
     @staticmethod
     def to_device(data, device):
@@ -208,16 +213,17 @@ class Engine():
 
     def evaluate(self):
         for task in self.validation_tasks:
-            diagnostic = self.run_task(self.global_step, self.epoch, task, **self.parameters_manager.parameters)
+            if (self.epoch + 1) % task.frequency == 0:
+                diagnostic = self.run_task(self.global_step, self.epoch, task, **self.parameters_manager.parameters)
 
-            best_score = None
-            if task.key == self.task2track:
-                # save best model
-                self.update_validation_score_and_save(task.pipeline, diagnostic)
-                best_score = self.best_validation_score
+                best_score = None
+                if task.key == self.task2track:
+                    # save best model
+                    self.update_validation_score_and_save(task.pipeline, diagnostic)
+                    best_score = self.best_validation_score
 
-            # log validation
-            self.log_diagnostic(task.key, diagnostic, best_score=best_score)
+                # log validation
+                self.log_diagnostic(task.key, diagnostic, best_score=best_score)
 
     def test(self):
         diagnostic = self.run_task(self.global_step, self.epoch, self.test_task, **self.parameters_manager.parameters)
@@ -225,7 +231,7 @@ class Engine():
         score = self.key2track(diagnostic)
         best_score = BestScore(step=self.global_step, epoch=self.epoch, value=score, summary=diagnostic)
 
-        self.save_score(self, best_score, self.test_score_path)
+        self.save_score(best_score, self.test_score_path)
 
     def run_task(self, global_step, epoch, task, **parameters) -> Diagnostic:
         task.initialize()

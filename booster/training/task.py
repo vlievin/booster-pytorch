@@ -12,13 +12,15 @@ class BaseTask():
     def __init__(self,
                  key: str,
                  pipeline: Pipeline,
-                 dataloader: DataLoader):
+                 dataloader: DataLoader,
+                 frequency:int=1):
         super().__init__()
 
         self.key = key
         self.pipeline = pipeline
         self.dataloader = dataloader
         self.aggregator = Aggregator()
+        self.frequency = frequency
 
     def initialize(self):
         self.aggregator.initialize()
