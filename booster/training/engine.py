@@ -6,13 +6,13 @@ from functools import partial
 from typing import *
 
 import torch
-from torch import Tensor
-from tqdm import tqdm
-
 from booster.datastruct import Diagnostic
 from booster.logging import LoggerManager, BestScore
 from booster.pipeline import Pipeline
 from booster.utils.functional import _to_device
+from torch import Tensor
+from tqdm import tqdm
+
 from .scheduler import ParametersScheduler
 from .task import BaseTask, Training, Validation
 
@@ -56,7 +56,7 @@ class Engine():
                  resume=True,
                  **kwargs):
 
-        print(f"# logging directory: {os.path.abspath(logdir)}")
+        print(f"\n# logging directory: {os.path.abspath(logdir)}\n")
 
         self.setup_logging(logdir)
 
@@ -99,7 +99,6 @@ class Engine():
         # samplers
         self.samplers = samplers
 
-
         # log info
         self.info_logger.info(f"# Torch version: {torch.__version__}")
         M_parameters = (sum(p.numel() for p in self.training_task.pipeline.model.parameters() if p.requires_grad) / 1e6)
@@ -126,6 +125,11 @@ class Engine():
                 exit()
 
     def setup_logging(self, logdir):
+
+        # make sure we define the basic config here
+        from imp import reload  # python 2.x don't need to import reload, use it directly
+        reload(logging)
+
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s %(name)-4s %(levelname)-4s %(message)s',
                             datefmt='%m-%d %H:%M',
@@ -254,7 +258,10 @@ class Engine():
         return summary
 
     def load_best_model(self, pipeline):
-        pipeline.load_state_dict(torch.load(self.model_path))
+
+        device = next(iter(pipeline.parameters())).device
+
+        pipeline.load_state_dict(torch.load(self.model_path, map_location=device))
 
     def save_state(self):
 
@@ -271,7 +278,9 @@ class Engine():
 
     def load_state(self):
 
-        state = torch.load(self.state_path)
+        device = next(iter(self.training_task.pipeline.parameters())).device
+
+        state = torch.load(self.state_path, map_location=device)
 
         self.training_task.pipeline.load_state_dict(state['pipeline'])
         self.training_task.optimizer.load_state_dict(state['optimizer'])

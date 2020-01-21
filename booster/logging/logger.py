@@ -47,8 +47,7 @@ class LoggingLogger(BaseLogger):
 
         self.logger = logging.getLogger(self.key)
 
-        # logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
-        # self.logger = logging.getLogger(self.key)
+        # logFormatter = logging.Formatter('%(asctime)s %(name)-4s %(levelname)-4s %(message)s')
         #
         # fileHandler = logging.FileHandler(os.path.join(self.logdir, 'run.log'))
         # fileHandler.setFormatter(logFormatter)
