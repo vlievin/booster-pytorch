@@ -51,7 +51,7 @@ summary.log(writer, global_step)
 
 ## Evaluator
 
-The base Evaluator class is a framework to perform loss and diagnostics computation. 
+The base Evaluator class is a template that wraps forward pass with loss & disagnostics computation. The output is tuple (loss: torch.Tensor, diagnostics: Diagnostic, output: dict). For a simple classifier: 
 
 ```python
 from booster.evaluation import Classification
@@ -66,7 +66,7 @@ loss, diagnostics, output = evaluator(model, data)
 
 ## Pipeline: model + evaluator
  
-The pipeline fuses the model forward pass with the Evaluator and can be wrapped into a custom Dataparallel class that handles the diagnostics and outputs.The output is tuple (loss: torch.Tensor, diagnostics: Diagnostic, output: dict). Here is an example for a simple classifier. 
+The pipeline handles both the model and the evaluator such as to reach a higher level of abstraction. It comes with a custom Dataparallel module that handles the Diagnostic datastructure, so any model with an arbitrarily complex loss function/diagnostics computation can be parallelized across multiple GPUs.
 
 ```python
 from booster import Pipeline, DataParallelPipeline
