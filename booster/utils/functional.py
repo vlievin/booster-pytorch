@@ -4,10 +4,17 @@ import operator
 from functools import reduce
 from typing import *
 
+import os
 import torch
 from torch import Tensor
 from torchvision.utils import make_grid
 
+def logging_sep(char = "-"):
+    return os.get_terminal_size().columns * char
+
+def available_device():
+    """return cuda if available"""
+    return "cuda:0" if torch.cuda.device_count() else "cpu"
 
 def prod(x: Iterable):
     """return the product of an Iterable"""
@@ -15,7 +22,6 @@ def prod(x: Iterable):
         return reduce(operator.mul, x)
     else:
         return 0
-
 
 def batch_reduce(x: Tensor, reduce=torch.sum):
     """reduce each batch element of a tensor"""
@@ -72,7 +78,6 @@ def _to_device(x: Any, device: torch.device):
 
 
 def make_grid_from_images(x_: Tensor, nrow: Optional[int] = None) -> Tensor:
-    print("# make_grid:", x_.min(), x_.max())
 
     # replace nans with 0
     x_[x_ != x_] = 0

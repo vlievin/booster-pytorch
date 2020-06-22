@@ -3,7 +3,7 @@ from typing import *
 
 
 class TriggerType(Enum):
-    STEP = 'step'
+    STEP = "step"
     EPOCH = "epoch"
 
 

@@ -8,11 +8,12 @@ import torch.nn.functional as F
 import torchvision
 from booster.evaluation import Classification
 from booster.pipeline import Pipeline, DataParallelPipeline
+from booster.utils import logging_sep, available_device
 
 # load data
 dataset = torchvision.datasets.MNIST('../../data', train=False, download=True,
                                      transform=torchvision.transforms.ToTensor())
-loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+loader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
 
 
 # define model
@@ -41,13 +42,15 @@ class Classifier(nn.Module):
 # check GPUs
 n_gpus = torch.cuda.device_count()
 device_ids = list(range(n_gpus)) if n_gpus else None
-print("N gpus:", n_gpus, "Devices:", device_ids)
-assert n_gpus > 1
+print(logging_sep("="))
+print(f"N gpus = {n_gpus}, Devices = {device_ids}")
+if n_gpus == 1:
+    print("Use more than one GPU to test multi-GPUs capabilities.")
 
 # init model and evaluator
 model = Classifier()
 evaluator = Classification(10)
-model.to("cuda:0")
+model.to(available_device())
 
 # fuse model + evaluator
 pipeline = Pipeline(model, evaluator)
@@ -57,8 +60,12 @@ parallel_pipeline = DataParallelPipeline(pipeline, device_ids=device_ids)
 
 # evaluate model
 data = next(iter(loader))
+print(logging_sep("-"))
 print("x.shape =", next(iter(data)).shape)
-loss, diagnostics = parallel_pipeline(data)
+loss, diagnostics, output = parallel_pipeline(data)
 
-print("\nLoss:", loss.device, loss)
+print(logging_sep("-"))
+print(f"Loss = {loss:.3f}, device = {loss.device}")
+print(logging_sep("-"))
 print(diagnostics)
+print(logging_sep("="))

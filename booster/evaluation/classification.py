@@ -14,7 +14,7 @@ class Classification(Evaluator):
         self.categories = categories
         self.loss_fn = nn.CrossEntropyLoss(reduction='none')
 
-    def __call__(self, model: nn.Module, data: Tensor, **kwargs: Any) -> Tuple[Tensor, Diagnostic]:
+    def __call__(self, model: nn.Module, data: Tensor, **kwargs: Any) -> Tuple[Tensor, Diagnostic, Dict]:
         """
         Compute the logits given the model and the data, compute the loss, and return loss + diagnostics
 
@@ -38,13 +38,16 @@ class Classification(Evaluator):
         matches = (y_.argmax(1) == y).float()
         batch_accuracy = matches.sum() / torch.ones_like(matches).sum()
 
+        # define output
+        output = {'y_': y_}
+
         # diagnostics
         diagnostics = {
             'loss': {'nll': nll, "batch_accuracy": batch_accuracy},
             'info': {'batch_size': x.size(0)}
         }
 
-        # create diagnostics object and convert everything into tensors on x.device
+        # [optional] create diagnostics object and convert everything into tensors on x.device
         diagnostics = Diagnostic(diagnostics).to(x.device)
 
-        return nll.mean(0), diagnostics
+        return nll.mean(0), diagnostics, output

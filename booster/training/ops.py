@@ -42,7 +42,7 @@ def training_step(pipeline: Pipeline, data: Tuple, optimizer: torch.optim.Optimi
     pipeline.model.train()
 
     # process data using model and evaluator
-    loss, diagnostics = pipeline(data, **kwargs)
+    loss, diagnostics, output = pipeline(data, **kwargs)
     loss = loss.mean(0)
 
     # abort if loss is nan
@@ -83,5 +83,5 @@ def validation_step(pipeline: Pipeline, data: Tuple, **kwargs: Any) -> Diagnosti
     :return: diagnostics from the pipeline
     """
     pipeline.model.eval()
-    _, diagnostics = pipeline(data, **kwargs)
+    _, diagnostics, _ = pipeline(data, **kwargs)
     return diagnostics

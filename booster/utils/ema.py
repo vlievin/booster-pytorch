@@ -8,6 +8,11 @@ def deepcopy(model):
 
 
 class EMA():
+    """
+    Exponential moving average (EMA)
+    Keeps a copy of the model and update the parameters of the EMA model using EMA.
+    """
+
     def __init__(self, model, decay):
         self.decay = decay
         self.training_model = model

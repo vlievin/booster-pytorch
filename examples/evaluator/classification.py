@@ -7,10 +7,11 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 from booster.evaluation import Classification
+from booster.utils import logging_sep
 
 # load data
 dataset = torchvision.datasets.MNIST('../../data', train=False, download=True, transform=torchvision.transforms.ToTensor())
-loader = torch.utils.data.DataLoader(dataset,batch_size=32, shuffle=True)
+loader = torch.utils.data.DataLoader(dataset,batch_size=5, shuffle=True)
 
 # define model
 class Classifier(nn.Module):
@@ -38,7 +39,12 @@ evaluator = Classification(10)
 
 # evaluate model
 data = next(iter(loader))
-loss, diagnostics = evaluator(model, data)
+loss, diagnostics, output = evaluator(model, data)
 
+print(logging_sep("="))
 print("Loss:", loss)
+print(logging_sep())
 print(diagnostics)
+print(logging_sep())
+print("Output =", output)
+print(logging_sep("="))

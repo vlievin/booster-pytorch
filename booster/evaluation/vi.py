@@ -98,13 +98,13 @@ class VariationalInference(Evaluator):
 
         return loss, auxiliary
 
-    def __call__(self, model: nn.Module, data: Tuple, **kwargs: Any) -> Tuple[Tensor, Diagnostic]:
+    def __call__(self, model: nn.Module, data: Tuple, **kwargs: Any) -> Tuple[Tensor, Diagnostic, Dict]:
         """
         Process inputs using model and compute loss, ELBO and diagnostics.
         :param model: model to evaluate
         :param data: input data
         :param kwargs: other args passed both to the model and the evaluator
-        :return: (loss, diagnostics)
+        :return: (loss, diagnostics, output)
         """
 
         # get data
@@ -166,4 +166,4 @@ class VariationalInference(Evaluator):
         # create diagnostics object and convert everything into tensors on x.device
         diagnostics = Diagnostic(diagnostics).to(x.device)
 
-        return loss.mean(), diagnostics
+        return loss.mean(), diagnostics, outputs

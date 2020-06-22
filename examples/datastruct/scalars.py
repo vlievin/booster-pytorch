@@ -1,13 +1,16 @@
+"""aggregate two logs `data1` and `data2` and log to tensorboard"""
+
 import sys;
 
 sys.path.append("../../")
 
 from booster.datastruct import Aggregator, Diagnostic
 from torch.utils.tensorboard import SummaryWriter
+from booster.utils import logging_sep
 
 # create data
-data1 = {'loss': {'nll': 0.1, 'kl': 0.5}, 'other': {'yo': 0.3}}
-data2 = {'loss': {'nll': 0.3, 'kl': 0.7}, 'other': {'yo': 0.5}}
+data1 = {'loss': {'nll': 0.1, 'kl': 0.5}, 'other': {'ex1': 0.3}}
+data2 = {'loss': {'nll': 0.3, 'kl': 0.7}, 'other': {'ex1': 0.5}}
 
 # create a diagnostic object for data1
 diag1 = Diagnostic(data1)
@@ -27,7 +30,9 @@ agg.update(diag2)
 summary = agg.data.to('cpu')
 
 # print resulting summary
+print(logging_sep())
 print(summary)
+print(logging_sep())
 
 # log to tensorboard
 writer = SummaryWriter(log_dir="../../tensorboard")
