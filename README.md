@@ -2,6 +2,12 @@
 
 A lightweight library to ease the training and the debugging of deep neural networks with PyTorch. Data structures and paradigms.
 
+## Installation
+
+```
+pip install git+https://github.com/vlievin/booster-pytorch.git
+```
+
 ## Data Structures
 
 ### Diagnostic
