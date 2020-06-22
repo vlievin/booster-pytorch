@@ -2,9 +2,11 @@ from collections import defaultdict
 from functools import partial
 from typing import *
 
+from torch import Tensor
+import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
-from ..utils import detach_to_device
+from ..utils import detach_to_device, detach
 
 
 class Diagnostic(defaultdict):
@@ -35,7 +37,10 @@ class Diagnostic(defaultdict):
             for k, v in self.items():
                 s += f"\n\t{k} = ["
                 for k_, v_ in v.items():
-                    s += f"{k_} : {v_}, "
+                    if isinstance(v_, (Tensor, np.ndarray)):
+                        s += f"{k_} : {v_.shape}, "
+                    else:
+                        s += f"{k_} : {v_}, "
                 s += "]"
         return s
 
@@ -44,7 +49,7 @@ class Diagnostic(defaultdict):
             if isinstance(v, Mapping):
                 self[k] = Diagnostic.update(self.get(k, {}), v)
             else:
-                self[k] = v
+                self[k] = detach(v)
 
         return self
 
@@ -60,7 +65,6 @@ class Diagnostic(defaultdict):
             return Diagnostic(data)
         else:
             return func(ob)
-
 
     def log(self, writer: SummaryWriter, global_step: int):
         """log Diagnostic to tensorboard"""

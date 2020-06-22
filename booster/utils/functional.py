@@ -35,6 +35,16 @@ def log_sum_exp(tensor, dim=-1, sum_op=torch.sum, eps: float = 1e-12, keepdim=Fa
     return torch.log(sum_op(torch.exp(tensor - max), dim=dim, keepdim=keepdim) + eps) + max
 
 
+def detach(x):
+    """detach, clone and or place on the given device"""
+    if x is not None:
+        if isinstance(x, torch.Tensor):
+            return x.detach()
+        else:
+            return x
+    else:
+        return None
+
 def detach_to_device(x, device):
     """detach, clone and or place on the given device"""
     if x is not None:
