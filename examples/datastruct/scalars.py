@@ -4,7 +4,7 @@ import sys;
 
 sys.path.append("../../")
 
-from booster.datastruct import Aggregator, Diagnostic
+from booster import Aggregator, Diagnostic
 from torch.utils.tensorboard import SummaryWriter
 from booster.utils import logging_sep
 

@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 from booster.evaluation import Classification
-from booster.pipeline import Pipeline, DataParallelPipeline
+from booster import Pipeline, DataParallelPipeline
 from booster.utils import logging_sep, available_device
 
 # load data

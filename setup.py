@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='booster-pytorch',
-    version='0.0.1',
+    version='0.0.2',
     author="Valentin Lievin",
     author_email="valentin.lievin@gmail.com",
     description="A lightweight library to ease the training and the debugging of deep neural networks with PyTorch. Data structures and paradigms.",
