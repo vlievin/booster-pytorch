@@ -50,7 +50,7 @@ summary.log(writer, global_step)
 
 ## Evaluator
 
-The Evaluator computes a forward pass through the model, the loss and additional Diagnostics.
+The base Evaluator class is a framework to perform loss and diagnostics computation. 
 
 ```python
 from booster.evaluation import Classification
@@ -65,7 +65,7 @@ loss, diagnostics, output = evaluator(model, data)
 
 ## Pipeline: model + evaluator
  
-The pipeline fuses the model forward pass with the evaluator and can be wrapped into a custom Dataparallel class that handles the diagnostics.
+The pipeline fuses the model forward pass with the Evaluator and can be wrapped into a custom Dataparallel class that handles the diagnostics and outputs.The output is tuple (loss: torch.Tensor, diagnostics: Diagnostic, output: dict). Here is an example for a simple classifier. 
 
 ```python
 from booster import Pipeline, DataParallelPipeline
