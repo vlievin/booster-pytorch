@@ -14,8 +14,8 @@ Example:
 from booster import Diagnostic
 
 data = {
-'loss' : {'nll' : [45., 58.], 'kl': [22., 18.]},
-'info' : {'batch_size' : 16, 'runtime' : 0.01}
+'loss' : {'nll' : torch.tensor([45., 58.]), 'kl': torch.tensor([22., 18.])},
+'info' : {'batch_size' : 2, 'runtime' : 0.01}
 }
 
 diagnostic = Diagnostic(data)
