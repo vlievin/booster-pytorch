@@ -42,6 +42,7 @@ summmary = summary.to('cpu')
 The output is a Diagnostic object and can easily be logged to Tensorboard.
 
 ```python
+from torch.utils.tensorboard import SummaryWriter
 # log to tensorboard
 writer = SummaryWriter(log_dir="...")
 summary.log(writer, global_step)
