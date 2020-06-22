@@ -14,8 +14,6 @@ pip install git+https://github.com/vlievin/booster-pytorch.git
 
 A two level dictionary structure to store the model diagnostics. Compatible with Tensorboard datastructure.
 
-Example:
-
 ```python
 from booster import Diagnostic
 
@@ -38,11 +36,10 @@ aggregator = Aggregator()
 ...
 aggregator.initialize()
 for x in data_loader:
-  data = optimization_step(model, data)
+  data = optimization_step(model, data) # data is a Diagnostic
   aggregator.update(data)
 
-summmary = aggregator.data # summary is an instance of Diagnostic
-summmary = summary.to('cpu')
+summmary = aggregator.data.to('cpu') # summary is a Diagnostic
 ```
 
 The output is a Diagnostic object and can easily be logged to Tensorboard.
